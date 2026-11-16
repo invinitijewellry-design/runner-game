@@ -2,209 +2,434 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#101827">
-<title>RUNNER - Endless Run</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#163c37">
+<title>RUNNER — Lari Tanpa Batas</title>
 <style>
-*{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101827;color:#fff;font-family:Arial,sans-serif;touch-action:none}
-#gameWrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(#17263b,#101827)}
-canvas{display:block;width:100vw;height:100vh;object-fit:contain;background:#b9e6ef}
-#hud{position:fixed;top:12px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;text-shadow:0 2px 4px #17263b;font-weight:bold}
-.pill{background:#101827bb;padding:8px 12px;border:1px solid #ffffff44;border-radius:20px;font-size:14px}
-#tools{position:fixed;right:12px;bottom:12px;display:flex;gap:8px}
-button,.fileLabel{border:0;border-radius:12px;padding:11px 14px;background:#ffd166;color:#17202e;font-weight:bold;font-size:14px;cursor:pointer}
-#overlay{position:fixed;inset:0;background:#07111dcc;display:flex;align-items:center;justify-content:center;padding:18px}
-.panel{width:min(440px,94vw);background:#17263b;border:1px solid #ffffff33;border-radius:20px;padding:22px;text-align:center;box-shadow:0 16px 50px #0008}
-.panel h1{margin:0 0 8px;font-size:28px}.panel p{line-height:1.5;color:#d7e5f1}
-.panel button{margin:6px}.hidden{display:none!important}
-#msg{min-height:22px;color:#ffd166;font-size:13px}
-input[type=file]{display:none}
-@media (orientation:portrait){#gameWrap:after{content:"Putar perangkat ke mode landscape untuk pengalaman terbaik";position:fixed;bottom:8px;left:10px;right:10px;text-align:center;color:#fff;background:#101827bb;padding:8px;border-radius:8px;font-size:12px;pointer-events:none}}
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
+:root{--ink:#163c37;--paper:#f4f0df;--lime:#d6ee75;--muted:#64756c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'Manrope',sans-serif;min-height:100svh}
+button,input,select{font:inherit}
+button,.upload{cursor:pointer;transition:transform .18s,background .18s}
+button:hover,.upload:hover{transform:translateY(-2px)}
+button:active,.upload:active{transform:scale(.97)}
+button:focus-visible,select:focus-visible,.upload:focus-within{outline:3px solid #ce6039;outline-offset:4px}
+header,main,footer{width:min(1160px,94%);margin:auto}
+header{display:flex;justify-content:space-between;align-items:center;padding:24px 0;border-bottom:1px solid #163c3725}
+.brand{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:30px;letter-spacing:1px}
+.tag{font-size:11px;font-weight:800;letter-spacing:2px}
+.intro{display:flex;justify-content:space-between;align-items:end;gap:20px;padding:24px 0}
+h1,h2{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase}
+h1{font-size:clamp(36px,6vw,64px);line-height:.95;margin:0}
+.intro p{font-size:13px;line-height:1.7;max-width:340px;margin:0}
+.stage{position:relative;overflow:hidden;background:#cce8dd;border:2px solid var(--ink);border-radius:8px;box-shadow:0 8px 0 #163c3714;animation:reveal .6s both}
+canvas{display:block;width:100%;aspect-ratio:16/9;touch-action:none}
+.hud{position:absolute;top:18px;left:20px;right:20px;display:flex;justify-content:space-between;gap:10px;pointer-events:none}
+.metrics{display:flex;gap:24px}
+.metric small{display:block;font-size:10px;letter-spacing:1.5px;font-weight:800}
+.metric strong{font-family:'Barlow Condensed',sans-serif;font-size:30px}
+.best{font-size:11px;font-weight:800;text-align:right}
+.overlay{position:absolute;inset:0;background:#f4f0dfe8;backdrop-filter:blur(6px);display:grid;place-items:center;padding:20px}
+.hidden{display:none!important}
+.dialog{max-width:470px;text-align:center}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:3px}
+h2{font-size:clamp(38px,7vw,76px);line-height:.95;margin:15px 0}
+.dialog p{font-size:13px;line-height:1.8}
+.primary{background:var(--ink);color:var(--lime);border:0;border-radius:3px;padding:14px 30px;font-weight:800}
+.secondary,.upload{background:transparent;border:1px solid #163c3740;color:var(--ink);border-radius:3px;padding:10px 14px;font-size:12px;font-weight:700}
+.actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#message{font-size:12px;min-height:18px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:22px 0}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.upload input{position:absolute;width:1px;height:1px;opacity:0}
+select{padding:9px;border:1px solid #163c3740;background:transparent;color:var(--ink);border-radius:3px;font-size:12px}
+.help{font-size:11px;color:var(--muted);line-height:1.8}
+footer{display:flex;justify-content:space-between;padding:18px 0;border-top:1px solid #163c3725;font-size:10px;letter-spacing:1px}
+#gameWrap:fullscreen{width:100%;height:100%;border:0;border-radius:0;display:flex;align-items:center;justify-content:center;background:var(--ink)}
+#gameWrap:fullscreen canvas{width:min(100vw,177.78vh);height:auto}
+@keyframes reveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:600px){
+header{padding:16px 0}.intro{display:block}.intro p{margin-top:12px}
+.hud{top:9px;left:12px;right:12px}.metrics{gap:12px}.metric strong{font-size:22px}
+canvas{aspect-ratio:4/3}.dialog p{font-size:11px;margin:8px 0}
+h2{font-size:40px;margin:8px 0}.primary{padding:10px 20px}
+.best{font-size:9px}.eyebrow{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div id="gameWrap"><canvas id="game"></canvas></div>
-<div id="hud">
-  <div class="pill">SKOR <span id="score">0</span> &nbsp;|&nbsp; LEVEL <span id="level">1</span></div>
-  <div class="pill">KALAH <span id="losses">0</span>/2</div>
+<header>
+<div class="brand">RUNNER<span style="color:#ce6039">.</span></div>
+<span class="tag">ENDLESS / RUN CLUB</span>
+</header>
+<main>
+<section class="intro">
+<h1>Satu lompatan.<br>Lebih jauh lagi.</h1>
+<p>Batu pendek, batu tinggi, dan burung di depan. Temukan ritmemu — setiap level membawa tantangan baru.</p>
+</section>
+<section class="stage" id="gameWrap" aria-label="Permainan lari">
+<canvas id="game" tabindex="0" aria-label="Game runner. Tekan spasi atau ketuk arena untuk melompat dua kali."></canvas>
+<div class="hud">
+<div class="metrics">
+<div class="metric"><small>SKOR</small><strong id="score">0</strong></div>
+<div class="metric"><small>LEVEL</small><strong id="level">1</strong></div>
+<div class="metric"><small>SPEED</small><strong id="speed">35</strong></div>
 </div>
-<div id="tools">
-  <label class="fileLabel" for="spriteFile">Ganti Karakter</label>
-  <input id="spriteFile" type="file" accept="image/png,image/webp,image/jpeg">
-  <button id="fullBtn">⛶ Fullscreen</button>
+<div class="best">REKOR <span id="best">0</span><br><br>KALAH <span id="losses">0</span></div>
 </div>
-<div id="overlay">
-  <div class="panel" id="startPanel">
-    <h1>🏃 RUNNER</h1>
-    <p>Lari sejauh mungkin, lompati batu dan hindari burung. Makin tinggi skor, makin cepat dan sulit!</p>
-    <p><b>Kontrol:</b> ketuk layar / tombol spasi untuk melompat. Tekan dua kali untuk lompatan lebih tinggi.</p>
-    <button id="startBtn">MULAI</button>
-    <p style="font-size:12px">Bisa dimainkan di browser. Untuk iklan Rewarded AdMob, hubungkan melalui Android Studio.</p>
-  </div>
-  <div class="panel hidden" id="overPanel">
-    <h1>💥 GAME OVER</h1>
-    <p>Skor: <b id="finalScore">0</b> &nbsp;|&nbsp; Level: <b id="finalLevel">1</b></p>
-    <p id="gateText">Dua kali kalah. Tonton iklan untuk mendapatkan kesempatan lanjut.</p>
-    <button id="rewardBtn">▶ TONTON IKLAN & LANJUT</button>
-    <button id="retryBtn">ULANGI</button>
-    <div id="msg"></div>
-  </div>
+<div class="overlay" id="overlay">
+<div class="dialog">
+<span class="eyebrow" id="eyebrow">SIAP MENGAMBIL LANGKAH?</span>
+<h2 id="title">Lari tanpa<br>batas.</h2>
+<p id="description">Ketuk arena atau tekan <b>SPASI</b> untuk melompat.<br>Ketuk lagi saat di udara untuk lompatan kedua.</p>
+<div class="actions">
+<button class="primary" id="startBtn">MULAI LARI ↗</button>
+<button class="secondary hidden" id="rewardBtn">TONTON IKLAN & ULANGI</button>
 </div>
+<p id="message" role="status" aria-live="polite"></p>
+</div>
+</div>
+</section>
+<section class="toolbar" aria-label="Pengaturan permainan">
+<div class="tools">
+<label class="upload">＋ Ganti karakter
+<input id="spriteFile" type="file" accept="image/png,image/webp,image/jpeg">
+</label>
+<select id="frames" aria-label="Jumlah frame gambar karakter">
+<option value="1">Gambar satu pose</option>
+<option value="6">Sprite 6 frame mendatar</option>
+</select>
+<button class="secondary" id="fullBtn">⛶ Layar penuh</button>
+</div>
+<div class="help">Speed awal: <b>35</b> · bertambah setiap level<br>Gambar karakter digunakan selama halaman ini terbuka.</div>
+</section>
+<p id="uploadStatus" class="help" role="status" aria-live="polite"></p>
+</main>
+<footer><span>KEEP MOVING. KEEP EXPLORING.</span><span>SPASI / ↑ / KETUK</span></footer>
 <script>
 (() => {
- const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
- const $=id=>document.getElementById(id);
- let W=960,H=540,ground=430, running=false, score=0, level=1, losses=0;
- let speed=6, spawn=0, obstacles=[], clouds=[], frame=0, last=0, raf=0;
- let player={x:130,y:0,w:54,h:72,vy:0,jumps:0,onGround:true};
- let sprite=null, spriteFrames=6, spriteFrame=0, spriteTick=0, rewarded=false;
- let rockCount = 0;
+'use strict';
+const $ = id => document.getElementById(id);
+const canvas = $('game');
+const ctx = canvas.getContext('2d');
+const W = 960, H = 540, ground = 430;
 
- function resize(){
-   const dpr=Math.min(devicePixelRatio||1,2);
-   const rect=canvas.getBoundingClientRect();
-   canvas.width=Math.round(rect.width*dpr); canvas.height=Math.round(rect.height*dpr);
-   W=960;H=540;ground=430;
-   ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
- }
- window.addEventListener('resize',resize); resize();
+// Speed awal sesuai permintaan.
+// Satuan speed di game ini: 1 = 10 piksel per detik.
+// Jadi speed 35 = 350 piksel/detik, bukan 35 piksel setiap frame.
+const START_SPEED = 35;
+const MAX_SPEED = 65;
+const SPEED_PER_LEVEL = 3;
+const PIXELS_PER_SPEED = 10;
 
- function jump(){
-   if(!running)return;
-   if(player.jumps<2){player.vy=player.jumps===0?-15:-12;player.jumps++;player.onGround=false;}
- }
+let speed = START_SPEED, score = 0, level = 1, losses = 0;
+let running = false, obstacles = [], rockCount = 0, spawnTimer = 1.4;
+let elapsed = 0, distance = 0, last = 0, best = 0;
+let sprite = null, spriteFrames = 1;
+let player = {x:140, y:ground-72, w:54, h:72, vy:0, jumps:0};
+try { best = Number(localStorage.getItem('runner-best')) || 0; } catch (_) {}
+$('best').textContent = Math.floor(best);
 
- function drawRunner(){
-   if(sprite){
-     const fw=sprite.width/spriteFrames, fh=sprite.height;
-     ctx.drawImage(sprite,Math.floor(spriteFrame)*fw,0,fw,fh,player.x,player.y,player.w,player.h);
-     return;
-   }
-   const cx=player.x+27, cy=player.y+28, swing=Math.sin(frame*.28)*10;
-   ctx.lineCap='round';ctx.lineWidth=8;
-   ctx.strokeStyle='#18324a';
-   ctx.beginPath();ctx.moveTo(cx-8,cy+25);ctx.lineTo(cx-12+swing,cy+43);ctx.lineTo(cx-20-swing,cy+58);ctx.stroke();
-   ctx.beginPath();ctx.moveTo(cx+8,cy+25);ctx.lineTo(cx+12-swing,cy+43);ctx.lineTo(cx+20+swing,cy+58);ctx.stroke();
-   ctx.strokeStyle='#f4a261';
-   ctx.beginPath();ctx.moveTo(cx-13,cy-2);ctx.lineTo(cx-24-swing*.5,cy+18);ctx.stroke();
-   ctx.beginPath();ctx.moveTo(cx+13,cy-2);ctx.lineTo(cx+24+swing*.5,cy+15);ctx.stroke();
-   ctx.fillStyle='#ef476f';ctx.fillRect(cx-18,cy-7,36,39);
-   ctx.fillStyle='#ffd7b5';ctx.beginPath();ctx.arc(cx,cy-22,19,0,Math.PI*2);ctx.fill();
-   ctx.fillStyle='#18324a';ctx.beginPath();ctx.arc(cx+5,cy-25,3,0,Math.PI*2);ctx.fill();
-   ctx.fillStyle='#fff';ctx.fillRect(cx-17,cy+58,19,7);ctx.fillRect(cx+7,cy+58,19,7);
- }
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.round(rect.width*dpr));
+  canvas.height = Math.max(1, Math.round(rect.height*dpr));
+  ctx.setTransform(canvas.width/W, 0, 0, canvas.height/H, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resize);
 
- function spawnObstacle(){
-   const bird = Math.random() < Math.min(.38, .18 + level * .015);
+function jump() {
+  if (!running || player.jumps >= 2) return;
+  player.vy = player.jumps === 0 ? -760 : -630;
+  player.jumps++;
+}
+function start() {
+  score = 0;
+  level = 1;
+  speed = START_SPEED;
+  obstacles = [];
+  rockCount = 0;
+  spawnTimer = 1.4;
+  elapsed = 0;
+  distance = 0;
+  player.y = ground-player.h;
+  player.vy = 0;
+  player.jumps = 0;
+  running = true;
+  last = performance.now();
+  $('overlay').classList.add('hidden');
+  $('message').textContent = '';
+  updateHud();
+  canvas.focus({preventScroll:true});
+}
+function updateHud() {
+  $('score').textContent = Math.floor(score);
+  $('level').textContent = level;
+  $('speed').textContent = speed;
+  $('losses').textContent = losses;
+}
+function endGame() {
+  if (!running) return;
+  running = false;
+  losses++;
+  if (score > best) {
+    best = Math.floor(score);
+    try { localStorage.setItem('runner-best', best); } catch (_) {}
+  }
+  $('best').textContent = best;
+  updateHud();
+  $('eyebrow').textContent = 'SATU LANGKAH LEBIH JAUH';
+  $('title').textContent = 'Coba lagi?';
+  $('description').textContent = `Skor ${Math.floor(score)} · Level ${level} · Speed ${speed}. Rekor terbaikmu: ${best}.`;
+  $('startBtn').textContent = 'ULANGI LARI ↗';
+  $('rewardBtn').classList.toggle('hidden', losses % 2 !== 0);
+  $('message').textContent = '';
+  $('overlay').classList.remove('hidden');
+  $('startBtn').focus({preventScroll:true});
+}
+function spawnObstacle() {
+  // Dua rintangan pertama selalu batu: pendek, lalu tinggi.
+  const bird = rockCount >= 2 &&
+    Math.random() < Math.min(.35, .08 + level*.02);
+  if (bird) {
+    obstacles.push({
+      type:'bird', x:W+40, y:level<3?280:(Math.random()<.5?280:345),
+      w:58, h:32, phase:Math.random()*Math.PI*2
+    });
+  } else {
+    rockCount++;
+    const extra = Math.min(12, (level-1)*2);
+    const height = (rockCount%2===1 ? 28 : 60) + extra;
+    obstacles.push({
+      type:'rock', x:W+40, y:ground-height,
+      w:rockCount%2===1?42:52, h:height
+    });
+  }
+}
+function update(dt) {
+  if (!running) return;
+  elapsed += dt;
+  score += dt * 12 * (speed/START_SPEED);
+  level = 1 + Math.floor(score/180);
+  speed = Math.min(MAX_SPEED, START_SPEED+(level-1)*SPEED_PER_LEVEL);
+  const movement = speed*PIXELS_PER_SPEED*dt;
+  distance += movement;
+  spawnTimer -= dt;
+  if (spawnTimer <= 0) {
+    spawnObstacle();
+    // Jeda dibatasi agar pemain tetap punya waktu untuk bereaksi.
+    spawnTimer = Math.max(1.05, 1.7-level*.035) + Math.random()*.35;
+  }
+  player.vy += 1900*dt;
+  player.y += player.vy*dt;
+  if (player.y >= ground-player.h) {
+    player.y = ground-player.h;
+    player.vy = 0;
+    player.jumps = 0;
+  }
+  obstacles.forEach(o => o.x -= movement);
+  obstacles = obstacles.filter(o => o.x+o.w > -30);
+  const px = player.x+10, py = player.y+8;
+  const pw = player.w-20, ph = player.h-13;
+  for (const o of obstacles) {
+    if (px<o.x+o.w-7 && px+pw>o.x+7 &&
+        py<o.y+o.h-5 && py+ph>o.y+5) {
+      endGame();
+      break;
+    }
+  }
+  updateHud();
+}
+function ellipse(x,y,rx,ry,color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);
+  ctx.fill();
+}
+function drawRunner() {
+  if (sprite) {
+    const fw = sprite.naturalWidth/spriteFrames;
+    const index = Math.floor(elapsed*11)%spriteFrames;
+    ctx.drawImage(sprite,index*fw,0,fw,sprite.naturalHeight,
+      player.x,player.y,player.w,player.h);
+    return;
+  }
+  const x = player.x+27, y = player.y+30;
+  const swing = player.jumps ? 5 : Math.sin(elapsed*19)*12;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#163c37';
+  [[-8,-12+swing,-19-swing],[8,12-swing,20+swing]].forEach(a=>{
+    ctx.beginPath();
+    ctx.moveTo(x+a[0],y+20);
+    ctx.lineTo(x+a[1],y+32);
+    ctx.lineTo(x+a[2],y+37);
+    ctx.stroke();
+  });
+  ctx.strokeStyle = '#c3815d';
+  ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x-23-swing*.5,y+14);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+12,y);ctx.lineTo(x+24+swing*.5,y+10);ctx.stroke();
+  ctx.fillStyle = '#d45b36';ctx.fillRect(x-16,y-8,32,30);
+  ellipse(x,y-23,16,17,'#dfa379');
+  ctx.fillStyle = '#163c37';ctx.fillRect(x-15,y-37,30,7);
+  ellipse(x+7,y-25,2,2,'#163c37');
+  ctx.fillStyle = '#f4f0df';
+  ctx.fillRect(x-26-swing,y+37,18,5);
+  ctx.fillRect(x+11+swing,y+37,18,5);
+}
+function draw() {
+  const sky = ctx.createLinearGradient(0,0,0,H);
+  sky.addColorStop(0,'#c4e1d9');sky.addColorStop(1,'#edf0d8');
+  ctx.fillStyle = sky;ctx.fillRect(0,0,W,H);
+  ellipse(792,116,43,43,'#f3c76c');
+  for (let i=0;i<5;i++) {
+    const x = ((i*245-distance*.12)%(W+220)+(W+220))%(W+220)-110;
+    const y = 110+(i%3)*35;
+    ellipse(x,y,32,12,'#f8f6e9');
+    ellipse(x+25,y-7,26,18,'#f8f6e9');
+    ellipse(x+50,y,29,12,'#f8f6e9');
+  }
+  [0,1].forEach(layer=>{
+    const shift = distance*(layer?.13:.06);
+    ctx.fillStyle = layer?'#87ad94':'#a7c3a4';
+    ctx.beginPath();ctx.moveTo(0,ground);
+    for(let x=0;x<=W;x+=8) {
+      ctx.lineTo(x,ground-80-layer*22-Math.sin((x+shift)/130)*35-
+        Math.sin((x+shift)/270)*25);
+    }
+    ctx.lineTo(W,ground);ctx.closePath();ctx.fill();
+  });
+  ctx.fillStyle='#214b3b';ctx.fillRect(0,ground,W,8);
+  ctx.fillStyle='#dfcfaa';ctx.fillRect(0,ground+8,W,H-ground-8);
+  ctx.fillStyle='#b8a67e';
+  for(let i=0;i<18;i++) {
+    const x = i*65-distance%65;
+    ctx.fillRect(x,ground+31+(i%3)*18,22,3);
+  }
+  ellipse(player.x+27,ground+5,28,5,'#163c3725');
+  obstacles.forEach(o=>{
+    if(o.type==='rock') {
+      ctx.fillStyle='#56675e';
+      ctx.beginPath();
+      ctx.moveTo(o.x,o.y+o.h);
+      ctx.lineTo(o.x+5,o.y+o.h*.4);
+      ctx.lineTo(o.x+o.w*.45,o.y);
+      ctx.lineTo(o.x+o.w-5,o.y+o.h*.25);
+      ctx.lineTo(o.x+o.w,o.y+o.h);
+      ctx.closePath();ctx.fill();
+      ctx.fillStyle='#91a08d';
+      ctx.beginPath();ctx.moveTo(o.x+8,o.y+o.h*.48);
+      ctx.lineTo(o.x+o.w*.45,o.y+7);
+      ctx.lineTo(o.x+o.w*.5,o.y+o.h*.6);ctx.closePath();ctx.fill();
+    } else {
+      ellipse(o.x+29,o.y+17,26,11,'#163c37');
+      ctx.strokeStyle='#163c37';ctx.lineWidth=5;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(o.x+27,o.y+15);
+      ctx.lineTo(o.x+12,o.y+Math.sin(elapsed*18+o.phase)*15);ctx.stroke();
+      ctx.fillStyle='#d45b36';ctx.beginPath();
+      ctx.moveTo(o.x+50,o.y+13);ctx.lineTo(o.x+61,o.y+17);
+      ctx.lineTo(o.x+50,o.y+20);ctx.closePath();ctx.fill();
+    }
+  });
+  drawRunner();
+}
+function loop(t) {
+  const dt = Math.min(.033, Math.max(0,(t-last)/1000));
+  last = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+$('startBtn').addEventListener('click',start);
+canvas.addEventListener('pointerdown', e => { e.preventDefault();jump(); });
+window.addEventListener('keydown',e=>{
+  if(['Space','ArrowUp'].includes(e.code) && running &&
+    !['INPUT','SELECT','BUTTON'].includes(document.activeElement.tagName)) {
+    e.preventDefault();
+    if(!e.repeat) jump();
+  }
+});
+document.addEventListener('visibilitychange',()=>{
+  last = performance.now();
+});
+$('frames').addEventListener('change',()=>{
+  spriteFrames = Number($('frames').value);
+});
+$('spriteFile').addEventListener('change',e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!['image/png','image/webp','image/jpeg'].includes(file.type)) {
+    $('uploadStatus').textContent='Pilih gambar PNG, WebP, atau JPEG.';
+    return;
+  }
+  if(file.size>10*1024*1024) {
+    $('uploadStatus').textContent='Ukuran gambar maksimal 10 MB.';
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = ()=>{
+    sprite = img;
+    spriteFrames = Number($('frames').value);
+    URL.revokeObjectURL(url);
+    $('uploadStatus').textContent='Karakter berhasil diganti. Pilih 6 frame jika gambarmu berupa sprite animasi mendatar.';
+    draw();
+  };
+  img.onerror = ()=>{
+    URL.revokeObjectURL(url);
+    $('uploadStatus').textContent='Gambar tidak dapat dibaca. Coba file lain.';
+  };
+  img.src = url;
+});
+$('fullBtn').addEventListener('click',async()=>{
+  try {
+    if(!document.fullscreenElement) {
+      if(!$('gameWrap').requestFullscreen) throw new Error('unsupported');
+      await $('gameWrap').requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (_) {
+    $('uploadStatus').textContent='Layar penuh tidak tersedia pada browser ini.';
+  }
+});
+document.addEventListener('fullscreenchange',resize);
 
-   if (bird) {
-     obstacles.push({
-       type: 'bird',
-       x: W + 30,
-       y: Math.random() < .5 ? 300 : 350,
-       w: 58,
-       h: 34,
-       phase: Math.random() * 6
-     });
-   } else {
-     rockCount++;
-     const height = rockCount % 2 === 1 ? 28 : 60;
-
-     obstacles.push({
-       type: 'rock',
-       x: W + 30,
-       y: ground - height,
-       w: 42,
-       h: height
-     });
-   }
- }
-
- function draw(){
-   const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#77c9e8');sky.addColorStop(1,'#e4f7e8');
-   ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
-   ctx.fillStyle='#fff0a8';ctx.beginPath();ctx.arc(810,90,38,0,Math.PI*2);ctx.fill();
-   clouds.forEach(c=>{ctx.fillStyle='#ffffffaa';ctx.beginPath();ctx.arc(c.x,c.y,20,0,Math.PI*2);ctx.arc(c.x+22,c.y-8,25,0,Math.PI*2);ctx.arc(c.x+48,c.y,18,0,Math.PI*2);ctx.fill();});
-   ctx.fillStyle='#80bd7b';ctx.fillRect(0,ground,W,H-ground);
-   ctx.fillStyle='#4c8d57';ctx.fillRect(0,ground,W,8);
-   ctx.fillStyle='#d6b77a';for(let x=0;x<W;x+=60)ctx.fillRect((x-(frame*speed*.8)%60),ground+25,30,5);
-   obstacles.forEach(o=>{
-     if(o.type==='rock'){
-       ctx.fillStyle='#687582';ctx.beginPath();ctx.moveTo(o.x,o.y+o.h);ctx.lineTo(o.x+5,o.y+15);ctx.lineTo(o.x+o.w*.45,o.y);ctx.lineTo(o.x+o.w-3,o.y+12);ctx.lineTo(o.x+o.w,o.y+o.h);ctx.closePath();ctx.fill();
-       ctx.fillStyle='#9aa7ad';ctx.fillRect(o.x+10,o.y+18,9,5);
-     }else{
-       ctx.fillStyle='#29384a';ctx.beginPath();ctx.ellipse(o.x+29,o.y+17,28,12,0,0,Math.PI*2);ctx.fill();
-       const flap=Math.sin(frame*.45+o.phase)*13;
-       ctx.strokeStyle='#29384a';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(o.x+28,o.y+17);ctx.lineTo(o.x+12,o.y+flap);ctx.stroke();
-       ctx.fillStyle='#f4a261';ctx.beginPath();ctx.moveTo(o.x+52,o.y+15);ctx.lineTo(o.x+64,o.y+19);ctx.lineTo(o.x+52,o.y+22);ctx.fill();
-     }
-   });
-   drawRunner();
- }
-
- function update(dt){
-   frame+=dt/16.67;
-   clouds.forEach(c=>{c.x-=speed*.18*dt/16.67;if(c.x<-80)c.x=W+80;});
-   if(!running)return;
-   score+=dt*.012*speed/6;
-   level=1+Math.floor(score/250);
-   speed=Math.min(13,6+(level-1)*.55);
-   spawn-=dt;
-   if(spawn<=0){spawnObstacle();spawn=Math.max(520,1250-level*45)+Math.random()*400;}
-   player.vy+=.72*dt/16.67;player.y+=player.vy*dt/16.67;
-   if(player.y>=ground-player.h){player.y=ground-player.h;player.vy=0;player.jumps=0;player.onGround=true;}
-   obstacles.forEach(o=>o.x-=speed*dt/16.67);
-   obstacles=obstacles.filter(o=>o.x+o.w>-20);
-   for(const o of obstacles){
-     const px=player.x+9,py=player.y+8,pw=player.w-18,ph=player.h-12;
-     if(px<o.x+o.w-7&&px+pw>o.x+7&&py<o.y+o.h-5&&py+ph>o.y+5){endGame();break;}
-   }
-   spriteTick+=dt;if(spriteTick>90){spriteFrame=(spriteFrame+1)%spriteFrames;spriteTick=0;}
-   $('score').textContent=Math.floor(score);$('level').textContent=level;
- }
-
- function loop(t){const dt=Math.min(40,t-last||16);last=t;update(dt);draw();raf=requestAnimationFrame(loop);}
-
- function start(){
-   score=0;level=1;speed=6;spawn=700;obstacles=[];player.y=ground-player.h;player.vy=0;player.jumps=0;
-   running=true;$('overlay').classList.add('hidden');$('losses').textContent=losses;
-   cancelAnimationFrame(raf);last=0;raf=requestAnimationFrame(loop);
- }
-
- function endGame(){
-   if(!running)return;running=false;losses++;$('losses').textContent=losses;
-   $('finalScore').textContent=Math.floor(score);$('finalLevel').textContent=level;
-   $('overlay').classList.remove('hidden');$('startPanel').classList.add('hidden');$('overPanel').classList.remove('hidden');
-   const gate=losses%2===0;
-   $('rewardBtn').classList.toggle('hidden',!gate);
-   $('gateText').textContent=gate?'Dua kali kalah! Tonton iklan Rewarded untuk mendapat satu kesempatan lanjut.':'Kamu kalah. Tekan Ulangi untuk mencoba lagi.';
-   $('msg').textContent='';
- }
-
- window.onRewardedAdResult=function(success){
-   if(success){losses=0;$('losses').textContent=losses;start();}
-   else $('msg').textContent='Iklan belum selesai. Coba lagi jika tersedia.';
- };
-
- $('startBtn').onclick=start;$('retryBtn').onclick=start;
- $('rewardBtn').onclick=()=>{
-   $('msg').textContent='Memuat iklan...';
-   if(window.Android&&typeof window.Android.showRewardedAd==='function')window.Android.showRewardedAd();
-   else $('msg').textContent='Rewarded AdMob belum terhubung. Hubungkan Android.showRewardedAd() di Android Studio.';
- };
-
- $('fullBtn').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch(e){}};
- canvas.addEventListener('pointerdown',e=>{e.preventDefault();jump();});
- window.addEventListener('keydown',e=>{if(['Space','ArrowUp','KeyW'].includes(e.code)){e.preventDefault();jump();}});
-
- $('spriteFile').addEventListener('change',e=>{
-   const file=e.target.files[0];if(!file)return;
-   const img=new Image();img.onload=()=>{sprite=img;spriteFrame=0;spriteTick=0;$('msg').textContent='Karakter berhasil diganti.';};
-   img.src=URL.createObjectURL(file);
- });
-
- for(let i=0;i<5;i++)clouds.push({x:i*230+70,y:75+Math.random()*100});
- player.y=ground-player.h;draw();
+// Iklan asli hanya tersedia jika bridge Android sudah dihubungkan.
+// Ulangi tetap tersedia di browser; tidak ada iklan palsu.
+let rewardPending = false;
+$('rewardBtn').addEventListener('click',()=>{
+  if(rewardPending) return;
+  if(window.Android && typeof window.Android.showRewardedAd==='function') {
+    rewardPending = true;
+    $('rewardBtn').disabled = true;
+    $('message').textContent='Memuat iklan…';
+    try { window.Android.showRewardedAd(); }
+    catch (_) {
+      rewardPending=false;
+      $('rewardBtn').disabled=false;
+      $('message').textContent='Iklan gagal dimuat. Kamu tetap bisa memilih Ulangi.';
+    }
+  } else {
+    $('message').textContent='AdMob belum terhubung. Gunakan Ulangi untuk bermain lagi.';
+  }
+});
+window.onRewardedAdResult = success=>{
+  rewardPending=false;
+  $('rewardBtn').disabled=false;
+  if(success===true || success==='true') {
+    losses=0;
+    start();
+  } else {
+    $('message').textContent='Iklan belum selesai atau tidak tersedia. Silakan coba lagi.';
+  }
+};
+resize();
+requestAnimationFrame(t=>{last=t;loop(t);});
 })();
 </script>
 </body>

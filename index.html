@@ -58,6 +58,8 @@ input[type=file]{display:none}
  let speed=6, spawn=0, obstacles=[], clouds=[], frame=0, last=0, raf=0;
  let player={x:130,y:0,w:54,h:72,vy:0,jumps:0,onGround:true};
  let sprite=null, spriteFrames=6, spriteFrame=0, spriteTick=0, rewarded=false;
+ let rockCount = 0;
+
  function resize(){
    const dpr=Math.min(devicePixelRatio||1,2);
    const rect=canvas.getBoundingClientRect();
@@ -66,17 +68,18 @@ input[type=file]{display:none}
    ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
  }
  window.addEventListener('resize',resize); resize();
+
  function jump(){
    if(!running)return;
    if(player.jumps<2){player.vy=player.jumps===0?-15:-12;player.jumps++;player.onGround=false;}
  }
+
  function drawRunner(){
    if(sprite){
      const fw=sprite.width/spriteFrames, fh=sprite.height;
      ctx.drawImage(sprite,Math.floor(spriteFrame)*fw,0,fw,fh,player.x,player.y,player.w,player.h);
      return;
    }
-   // Karakter kartun sederhana dengan animasi kaki dan tangan
    const cx=player.x+27, cy=player.y+28, swing=Math.sin(frame*.28)*10;
    ctx.lineCap='round';ctx.lineWidth=8;
    ctx.strokeStyle='#18324a';
@@ -90,39 +93,36 @@ input[type=file]{display:none}
    ctx.fillStyle='#18324a';ctx.beginPath();ctx.arc(cx+5,cy-25,3,0,Math.PI*2);ctx.fill();
    ctx.fillStyle='#fff';ctx.fillRect(cx-17,cy+58,19,7);ctx.fillRect(cx+7,cy+58,19,7);
  }
-let rockCount = 0;
 
-function spawnObstacle(){
-  const bird = Math.random() < Math.min(.38, .18 + level * .015);
+ function spawnObstacle(){
+   const bird = Math.random() < Math.min(.38, .18 + level * .015);
 
-  if (bird) {
-    obstacles.push({
-      type: 'bird',
-      x: W + 30,
-      y: Math.random() < .5 ? 300 : 350,
-      w: 58,
-      h: 34,
-      phase: Math.random() * 6
-    });
-  } else {
-    rockCount++;
-    const height = rockCount % 2 === 1 ? 28 : 60;
+   if (bird) {
+     obstacles.push({
+       type: 'bird',
+       x: W + 30,
+       y: Math.random() < .5 ? 300 : 350,
+       w: 58,
+       h: 34,
+       phase: Math.random() * 6
+     });
+   } else {
+     rockCount++;
+     const height = rockCount % 2 === 1 ? 28 : 60;
 
-    obstacles.push({
-      type: 'rock',
-      x: W + 30,
-      y: ground - height,
-      w: 42,
-      h: height
-    });
-  }
-}
-
+     obstacles.push({
+       type: 'rock',
+       x: W + 30,
+       y: ground - height,
+       w: 42,
+       h: height
+     });
+   }
  }
+
  function draw(){
    const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#77c9e8');sky.addColorStop(1,'#e4f7e8');
    ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
-   // Matahari dan awan
    ctx.fillStyle='#fff0a8';ctx.beginPath();ctx.arc(810,90,38,0,Math.PI*2);ctx.fill();
    clouds.forEach(c=>{ctx.fillStyle='#ffffffaa';ctx.beginPath();ctx.arc(c.x,c.y,20,0,Math.PI*2);ctx.arc(c.x+22,c.y-8,25,0,Math.PI*2);ctx.arc(c.x+48,c.y,18,0,Math.PI*2);ctx.fill();});
    ctx.fillStyle='#80bd7b';ctx.fillRect(0,ground,W,H-ground);
@@ -141,6 +141,7 @@ function spawnObstacle(){
    });
    drawRunner();
  }
+
  function update(dt){
    frame+=dt/16.67;
    clouds.forEach(c=>{c.x-=speed*.18*dt/16.67;if(c.x<-80)c.x=W+80;});
@@ -161,12 +162,15 @@ function spawnObstacle(){
    spriteTick+=dt;if(spriteTick>90){spriteFrame=(spriteFrame+1)%spriteFrames;spriteTick=0;}
    $('score').textContent=Math.floor(score);$('level').textContent=level;
  }
+
  function loop(t){const dt=Math.min(40,t-last||16);last=t;update(dt);draw();raf=requestAnimationFrame(loop);}
+
  function start(){
    score=0;level=1;speed=6;spawn=700;obstacles=[];player.y=ground-player.h;player.vy=0;player.jumps=0;
    running=true;$('overlay').classList.add('hidden');$('losses').textContent=losses;
    cancelAnimationFrame(raf);last=0;raf=requestAnimationFrame(loop);
  }
+
  function endGame(){
    if(!running)return;running=false;losses++;$('losses').textContent=losses;
    $('finalScore').textContent=Math.floor(score);$('finalLevel').textContent=level;
@@ -176,24 +180,29 @@ function spawnObstacle(){
    $('gateText').textContent=gate?'Dua kali kalah! Tonton iklan Rewarded untuk mendapat satu kesempatan lanjut.':'Kamu kalah. Tekan Ulangi untuk mencoba lagi.';
    $('msg').textContent='';
  }
+
  window.onRewardedAdResult=function(success){
    if(success){losses=0;$('losses').textContent=losses;start();}
    else $('msg').textContent='Iklan belum selesai. Coba lagi jika tersedia.';
  };
+
  $('startBtn').onclick=start;$('retryBtn').onclick=start;
  $('rewardBtn').onclick=()=>{
    $('msg').textContent='Memuat iklan...';
    if(window.Android&&typeof window.Android.showRewardedAd==='function')window.Android.showRewardedAd();
    else $('msg').textContent='Rewarded AdMob belum terhubung. Hubungkan Android.showRewardedAd() di Android Studio.';
  };
+
  $('fullBtn').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch(e){}};
  canvas.addEventListener('pointerdown',e=>{e.preventDefault();jump();});
  window.addEventListener('keydown',e=>{if(['Space','ArrowUp','KeyW'].includes(e.code)){e.preventDefault();jump();}});
+
  $('spriteFile').addEventListener('change',e=>{
    const file=e.target.files[0];if(!file)return;
    const img=new Image();img.onload=()=>{sprite=img;spriteFrame=0;spriteTick=0;$('msg').textContent='Karakter berhasil diganti.';};
    img.src=URL.createObjectURL(file);
  });
+
  for(let i=0;i<5;i++)clouds.push({x:i*230+70,y:75+Math.random()*100});
  player.y=ground-player.h;draw();
 })();

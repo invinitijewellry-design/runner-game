@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#101827">
+<title>RUNNER - Endless Run</title>
+<style>
+*{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101827;color:#fff;font-family:Arial,sans-serif;touch-action:none}
+#gameWrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(#17263b,#101827)}
+canvas{display:block;width:100vw;height:100vh;object-fit:contain;background:#b9e6ef}
+#hud{position:fixed;top:12px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none;text-shadow:0 2px 4px #17263b;font-weight:bold}
+.pill{background:#101827bb;padding:8px 12px;border:1px solid #ffffff44;border-radius:20px;font-size:14px}
+#tools{position:fixed;right:12px;bottom:12px;display:flex;gap:8px}
+button,.fileLabel{border:0;border-radius:12px;padding:11px 14px;background:#ffd166;color:#17202e;font-weight:bold;font-size:14px;cursor:pointer}
+#overlay{position:fixed;inset:0;background:#07111dcc;display:flex;align-items:center;justify-content:center;padding:18px}
+.panel{width:min(440px,94vw);background:#17263b;border:1px solid #ffffff33;border-radius:20px;padding:22px;text-align:center;box-shadow:0 16px 50px #0008}
+.panel h1{margin:0 0 8px;font-size:28px}.panel p{line-height:1.5;color:#d7e5f1}
+.panel button{margin:6px}.hidden{display:none!important}
+#msg{min-height:22px;color:#ffd166;font-size:13px}
+input[type=file]{display:none}
+@media (orientation:portrait){#gameWrap:after{content:"Putar perangkat ke mode landscape untuk pengalaman terbaik";position:fixed;bottom:8px;left:10px;right:10px;text-align:center;color:#fff;background:#101827bb;padding:8px;border-radius:8px;font-size:12px;pointer-events:none}}
+</style>
+</head>
+<body>
+<div id="gameWrap"><canvas id="game"></canvas></div>
+<div id="hud">
+  <div class="pill">SKOR <span id="score">0</span> &nbsp;|&nbsp; LEVEL <span id="level">1</span></div>
+  <div class="pill">KALAH <span id="losses">0</span>/2</div>
+</div>
+<div id="tools">
+  <label class="fileLabel" for="spriteFile">Ganti Karakter</label>
+  <input id="spriteFile" type="file" accept="image/png,image/webp,image/jpeg">
+  <button id="fullBtn">⛶ Fullscreen</button>
+</div>
+<div id="overlay">
+  <div class="panel" id="startPanel">
+    <h1>🏃 RUNNER</h1>
+    <p>Lari sejauh mungkin, lompati batu dan hindari burung. Makin tinggi skor, makin cepat dan sulit!</p>
+    <p><b>Kontrol:</b> ketuk layar / tombol spasi untuk melompat. Tekan dua kali untuk lompatan lebih tinggi.</p>
+    <button id="startBtn">MULAI</button>
+    <p style="font-size:12px">Bisa dimainkan di browser. Untuk iklan Rewarded AdMob, hubungkan melalui Android Studio.</p>
+  </div>
+  <div class="panel hidden" id="overPanel">
+    <h1>💥 GAME OVER</h1>
+    <p>Skor: <b id="finalScore">0</b> &nbsp;|&nbsp; Level: <b id="finalLevel">1</b></p>
+    <p id="gateText">Dua kali kalah. Tonton iklan untuk mendapatkan kesempatan lanjut.</p>
+    <button id="rewardBtn">▶ TONTON IKLAN & LANJUT</button>
+    <button id="retryBtn">ULANGI</button>
+    <div id="msg"></div>
+  </div>
+</div>
+<script>
+(() => {
+ const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
+ const $=id=>document.getElementById(id);
+ let W=960,H=540,ground=430, running=false, score=0, level=1, losses=0;
+ let speed=6, spawn=0, obstacles=[], clouds=[], frame=0, last=0, raf=0;
+ let player={x:130,y:0,w:54,h:72,vy:0,jumps:0,onGround:true};
+ let sprite=null, spriteFrames=6, spriteFrame=0, spriteTick=0, rewarded=false;
+ function resize(){
+   const dpr=Math.min(devicePixelRatio||1,2);
+   const rect=canvas.getBoundingClientRect();
+   canvas.width=Math.round(rect.width*dpr); canvas.height=Math.round(rect.height*dpr);
+   W=960;H=540;ground=430;
+   ctx.setTransform(canvas.width/W,0,0,canvas.height/H,0,0);
+ }
+ window.addEventListener('resize',resize); resize();
+ function jump(){
+   if(!running)return;
+   if(player.jumps<2){player.vy=player.jumps===0?-15:-12;player.jumps++;player.onGround=false;}
+ }
+ function drawRunner(){
+   if(sprite){
+     const fw=sprite.width/spriteFrames, fh=sprite.height;
+     ctx.drawImage(sprite,Math.floor(spriteFrame)*fw,0,fw,fh,player.x,player.y,player.w,player.h);
+     return;
+   }
+   // Karakter kartun sederhana dengan animasi kaki dan tangan
+   const cx=player.x+27, cy=player.y+28, swing=Math.sin(frame*.28)*10;
+   ctx.lineCap='round';ctx.lineWidth=8;
+   ctx.strokeStyle='#18324a';
+   ctx.beginPath();ctx.moveTo(cx-8,cy+25);ctx.lineTo(cx-12+swing,cy+43);ctx.lineTo(cx-20-swing,cy+58);ctx.stroke();
+   ctx.beginPath();ctx.moveTo(cx+8,cy+25);ctx.lineTo(cx+12-swing,cy+43);ctx.lineTo(cx+20+swing,cy+58);ctx.stroke();
+   ctx.strokeStyle='#f4a261';
+   ctx.beginPath();ctx.moveTo(cx-13,cy-2);ctx.lineTo(cx-24-swing*.5,cy+18);ctx.stroke();
+   ctx.beginPath();ctx.moveTo(cx+13,cy-2);ctx.lineTo(cx+24+swing*.5,cy+15);ctx.stroke();
+   ctx.fillStyle='#ef476f';ctx.fillRect(cx-18,cy-7,36,39);
+   ctx.fillStyle='#ffd7b5';ctx.beginPath();ctx.arc(cx,cy-22,19,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#18324a';ctx.beginPath();ctx.arc(cx+5,cy-25,3,0,Math.PI*2);ctx.fill();
+   ctx.fillStyle='#fff';ctx.fillRect(cx-17,cy+58,19,7);ctx.fillRect(cx+7,cy+58,19,7);
+ }
+ function spawnObstacle(){
+   const bird=Math.random()<Math.min(.38,.18+level*.015);
+   obstacles.push(bird?{type:'bird',x:W+30,y:Math.random()<.5?300:350,w:58,h:34,phase:Math.random()*6}
+                    :{type:'rock',x:W+30,y:ground-43,w:42+Math.random()*18,h:43});
+ }
+ function draw(){
+   const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#77c9e8');sky.addColorStop(1,'#e4f7e8');
+   ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+   // Matahari dan awan
+   ctx.fillStyle='#fff0a8';ctx.beginPath();ctx.arc(810,90,38,0,Math.PI*2);ctx.fill();
+   clouds.forEach(c=>{ctx.fillStyle='#ffffffaa';ctx.beginPath();ctx.arc(c.x,c.y,20,0,Math.PI*2);ctx.arc(c.x+22,c.y-8,25,0,Math.PI*2);ctx.arc(c.x+48,c.y,18,0,Math.PI*2);ctx.fill();});
+   ctx.fillStyle='#80bd7b';ctx.fillRect(0,ground,W,H-ground);
+   ctx.fillStyle='#4c8d57';ctx.fillRect(0,ground,W,8);
+   ctx.fillStyle='#d6b77a';for(let x=0;x<W;x+=60)ctx.fillRect((x-(frame*speed*.8)%60),ground+25,30,5);
+   obstacles.forEach(o=>{
+     if(o.type==='rock'){
+       ctx.fillStyle='#687582';ctx.beginPath();ctx.moveTo(o.x,o.y+o.h);ctx.lineTo(o.x+5,o.y+15);ctx.lineTo(o.x+o.w*.45,o.y);ctx.lineTo(o.x+o.w-3,o.y+12);ctx.lineTo(o.x+o.w,o.y+o.h);ctx.closePath();ctx.fill();
+       ctx.fillStyle='#9aa7ad';ctx.fillRect(o.x+10,o.y+18,9,5);
+     }else{
+       ctx.fillStyle='#29384a';ctx.beginPath();ctx.ellipse(o.x+29,o.y+17,28,12,0,0,Math.PI*2);ctx.fill();
+       const flap=Math.sin(frame*.45+o.phase)*13;
+       ctx.strokeStyle='#29384a';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(o.x+28,o.y+17);ctx.lineTo(o.x+12,o.y+flap);ctx.stroke();
+       ctx.fillStyle='#f4a261';ctx.beginPath();ctx.moveTo(o.x+52,o.y+15);ctx.lineTo(o.x+64,o.y+19);ctx.lineTo(o.x+52,o.y+22);ctx.fill();
+     }
+   });
+   drawRunner();
+ }
+ function update(dt){
+   frame+=dt/16.67;
+   clouds.forEach(c=>{c.x-=speed*.18*dt/16.67;if(c.x<-80)c.x=W+80;});
+   if(!running)return;
+   score+=dt*.012*speed/6;
+   level=1+Math.floor(score/250);
+   speed=Math.min(13,6+(level-1)*.55);
+   spawn-=dt;
+   if(spawn<=0){spawnObstacle();spawn=Math.max(520,1250-level*45)+Math.random()*400;}
+   player.vy+=.72*dt/16.67;player.y+=player.vy*dt/16.67;
+   if(player.y>=ground-player.h){player.y=ground-player.h;player.vy=0;player.jumps=0;player.onGround=true;}
+   obstacles.forEach(o=>o.x-=speed*dt/16.67);
+   obstacles=obstacles.filter(o=>o.x+o.w>-20);
+   for(const o of obstacles){
+     const px=player.x+9,py=player.y+8,pw=player.w-18,ph=player.h-12;
+     if(px<o.x+o.w-7&&px+pw>o.x+7&&py<o.y+o.h-5&&py+ph>o.y+5){endGame();break;}
+   }
+   spriteTick+=dt;if(spriteTick>90){spriteFrame=(spriteFrame+1)%spriteFrames;spriteTick=0;}
+   $('score').textContent=Math.floor(score);$('level').textContent=level;
+ }
+ function loop(t){const dt=Math.min(40,t-last||16);last=t;update(dt);draw();raf=requestAnimationFrame(loop);}
+ function start(){
+   score=0;level=1;speed=6;spawn=700;obstacles=[];player.y=ground-player.h;player.vy=0;player.jumps=0;
+   running=true;$('overlay').classList.add('hidden');$('losses').textContent=losses;
+   cancelAnimationFrame(raf);last=0;raf=requestAnimationFrame(loop);
+ }
+ function endGame(){
+   if(!running)return;running=false;losses++;$('losses').textContent=losses;
+   $('finalScore').textContent=Math.floor(score);$('finalLevel').textContent=level;
+   $('overlay').classList.remove('hidden');$('startPanel').classList.add('hidden');$('overPanel').classList.remove('hidden');
+   const gate=losses%2===0;
+   $('rewardBtn').classList.toggle('hidden',!gate);
+   $('gateText').textContent=gate?'Dua kali kalah! Tonton iklan Rewarded untuk mendapat satu kesempatan lanjut.':'Kamu kalah. Tekan Ulangi untuk mencoba lagi.';
+   $('msg').textContent='';
+ }
+ window.onRewardedAdResult=function(success){
+   if(success){losses=0;$('losses').textContent=losses;start();}
+   else $('msg').textContent='Iklan belum selesai. Coba lagi jika tersedia.';
+ };
+ $('startBtn').onclick=start;$('retryBtn').onclick=start;
+ $('rewardBtn').onclick=()=>{
+   $('msg').textContent='Memuat iklan...';
+   if(window.Android&&typeof window.Android.showRewardedAd==='function')window.Android.showRewardedAd();
+   else $('msg').textContent='Rewarded AdMob belum terhubung. Hubungkan Android.showRewardedAd() di Android Studio.';
+ };
+ $('fullBtn').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch(e){}};
+ canvas.addEventListener('pointerdown',e=>{e.preventDefault();jump();});
+ window.addEventListener('keydown',e=>{if(['Space','ArrowUp','KeyW'].includes(e.code)){e.preventDefault();jump();}});
+ $('spriteFile').addEventListener('change',e=>{
+   const file=e.target.files[0];if(!file)return;
+   const img=new Image();img.onload=()=>{sprite=img;spriteFrame=0;spriteTick=0;$('msg').textContent='Karakter berhasil diganti.';};
+   img.src=URL.createObjectURL(file);
+ });
+ for(let i=0;i<5;i++)clouds.push({x:i*230+70,y:75+Math.random()*100});
+ player.y=ground-player.h;draw();
+})();
+</script>
+</body>
+</html>

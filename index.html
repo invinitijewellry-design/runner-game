@@ -55,7 +55,7 @@ input[type=file]{display:none}
  const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
  const $=id=>document.getElementById(id);
  let W=960,H=540,ground=430, running=false, score=0, level=1, losses=0;
- let speed=6, spawn=0, obstacles=[], clouds=[], frame=0, last=0, raf=0;
+ let speed=15, spawn=0, obstacles=[], clouds=[], frame=0, last=0, raf=0;
  let player={x:130,y:0,w:54,h:72,vy:0,jumps:0,onGround:true};
  let sprite=null, spriteFrames=6, spriteFrame=0, spriteTick=0, rewarded=false;
  function resize(){

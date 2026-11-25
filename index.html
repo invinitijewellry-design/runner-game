@@ -41,7 +41,7 @@ button:focus-visible,select:focus-visible,.upload:focus-within{outline:3px solid
 .secondary,.upload{border:1px solid #163c3740;background:transparent;color:var(--ink);padding:10px 14px;font-size:12px;font-weight:700}
 #message{min-height:18px;font-size:12px;max-width:400px;margin:12px auto}
 
-/* Slot Iklan Banner (aktif saat sedang main atau kalah) */
+/* Slot Iklan Banner tetap konsisten saat main maupun kalah (tanpa refresh saat kalah) */
 .banner-wrap{margin-top:14px;border:1px dashed #163c3755;border-radius:6px;background:#ece6cf;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .banner-slot{min-height:52px;flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.6px;color:#3d574c;text-align:center}
 .banner-badge{font-size:9px;font-weight:800;letter-spacing:1.5px;padding:3px 6px;border-radius:3px;background:var(--ink);color:var(--lime);flex-shrink:0}
@@ -99,10 +99,10 @@ h2{font-size:38px;margin:8px 0}.dialog p{font-size:11px;margin:8px 0}
 </div>
 </section>
 
-<!-- Banner tampil saat sedang main ('playing') atau kalah ('gameover') -->
+<!-- Satu slot banner konsisten untuk main dan kalah (tidak me-refresh saat kalah) -->
 <section class="banner-wrap hidden" id="bannerWrap" aria-label="Iklan banner">
-<span class="banner-badge" id="bannerState">BANNER</span>
-<div class="banner-slot" id="bannerSlot">Area Iklan Banner aktif saat bermain atau kalah</div>
+<span class="banner-badge">BANNER</span>
+<div class="banner-slot" id="bannerSlot">Iklan Banner (Tetap / Tanpa Refresh Saat Kalah)</div>
 </section>
 
 <section class="toolbar" aria-label="Pengaturan permainan">
@@ -130,46 +130,34 @@ const START_SPEED=35, MAX_SPEED=65, SPEED_PER_LEVEL=3;
 let speed=35, score=0, level=1, best=0;
 let running=false, obstacles=[], rockCount=0, spawnTimer=1.4;
 let elapsed=0, distance=0, last=0, sprite=null, spriteFrames=1;
+let bannerActivated=false;
 const player={x:140,y:358,w:54,h:72,vy:0,jumps:0};
 
 try {
   best=Number(localStorage.getItem('runner-best'))||0;
 } catch (_) {}
 
-// Mode banner: 'idle' (sembunyi), 'playing' (saat main), 'gameover' (saat kalah)
-function setBannerMode(mode){
-  const wrap=$('bannerWrap'), badge=$('bannerState'), slot=$('bannerSlot');
-  if(mode==='playing' || mode==='gameover'){
-    wrap.classList.remove('hidden');
-    badge.textContent = mode==='playing' ? 'BANNER · MAIN' : 'BANNER · KALAH';
-    if(!slot.dataset.custom){
-      slot.textContent = mode==='playing'
-        ? 'Iklan Banner (Mode Bermain)'
-        : 'Iklan Banner (Mode Kalah / Game Over)';
-    }
-  } else {
-    wrap.classList.add('hidden');
-  }
-
-  // Bridge opsional untuk Android WebView (AdMob Banner)
+// Aktifkan banner sekali saat mulai bermain dan pertahankan tetap sama saat kalah
+// agar sering kalah tidak memicu refresh iklan terlalu cepat.
+function ensurePersistentBanner(){
+  $('bannerWrap').classList.remove('hidden');
+  if(bannerActivated) return;
+  bannerActivated=true;
   try {
     if(window.Android){
-      if(typeof window.Android.setBannerMode==='function'){
-        window.Android.setBannerMode(mode);
-      } else if(mode==='playing' || mode==='gameover'){
-        if(typeof window.Android.showBanner==='function') window.Android.showBanner(mode);
-      } else if(typeof window.Android.hideBanner==='function'){
-        window.Android.hideBanner();
+      if(typeof window.Android.setBannerActive==='function'){
+        window.Android.setBannerActive(true);
+      } else if(typeof window.Android.showBanner==='function'){
+        window.Android.showBanner();
       }
     }
   } catch (_) {}
 }
 
-// Opsional: fungsi helper bila ingin menyuntikkan skrip/HTML banner web dari luar
+// Opsional: fungsi helper bila ingin menyuntikkan skrip/HTML banner web dari luar sekali saja
 window.setWebBannerHtml = html => {
   const slot=$('bannerSlot');
   slot.innerHTML = html || '';
-  slot.dataset.custom = html ? '1' : '';
 };
 
 function updateHud(){
@@ -187,7 +175,7 @@ function showGameOver(){
   $('startBtn').textContent='ULANGI LARI ↗';
   $('overlay').classList.remove('hidden');
   $('message').textContent='';
-  setBannerMode('gameover');
+  ensurePersistentBanner();
   $('startBtn').focus({preventScroll:true});
 }
 function start(){
@@ -198,7 +186,7 @@ function start(){
   running=true;last=performance.now();
   $('overlay').classList.add('hidden');
   $('message').textContent='';
-  setBannerMode('playing');
+  ensurePersistentBanner();
   updateHud();
   canvas.focus({preventScroll:true});
 }
@@ -373,7 +361,6 @@ $('fullBtn').addEventListener('click',async()=>{
 });
 document.addEventListener('fullscreenchange',resize);
 
-setBannerMode('idle');
 updateHud();
 resize();
 requestAnimationFrame(t=>{last=t;loop(t);});

@@ -31,7 +31,7 @@ canvas{display:block;width:100%;aspect-ratio:16/9;touch-action:none}
 .dialog{max-width:490px;text-align:center}
 h2{font-size:clamp(36px,7vw,72px);line-height:.95;text-transform:uppercase;margin:14px 0}
 .dialog p{font-size:13px;line-height:1.7}
-.actions{display:flex;justify-content:center;gap:10px}
+.actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
 button,.upload{cursor:pointer;border-radius:3px;transition:transform .18s,background .18s}
 button:hover:not(:disabled),.upload:hover{transform:translateY(-2px)}
 button:active:not(:disabled){transform:scale(.97)}
@@ -40,7 +40,13 @@ button:focus-visible,select:focus-visible,.upload:focus-within{outline:3px solid
 .primary{border:0;background:var(--ink);color:var(--lime);padding:14px 24px;font-size:13px;font-weight:800}
 .secondary,.upload{border:1px solid #163c3740;background:transparent;color:var(--ink);padding:10px 14px;font-size:12px;font-weight:700}
 #message{min-height:18px;font-size:12px;max-width:400px;margin:12px auto}
-.toolbar{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:22px 0}
+
+/* Slot Iklan Banner (aktif saat sedang main atau kalah) */
+.banner-wrap{margin-top:14px;border:1px dashed #163c3755;border-radius:6px;background:#ece6cf;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.banner-slot{min-height:52px;flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:.6px;color:#3d574c;text-align:center}
+.banner-badge{font-size:9px;font-weight:800;letter-spacing:1.5px;padding:3px 6px;border-radius:3px;background:var(--ink);color:var(--lime);flex-shrink:0}
+
+.toolbar{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;padding:18px 0 22px}
 .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .upload input{position:absolute;opacity:0;width:1px;height:1px}
 select{padding:9px;border:1px solid #163c3740;background:transparent;color:var(--ink);font-size:12px}
@@ -55,6 +61,7 @@ canvas{aspect-ratio:4/3}.hud{top:10px;left:12px;right:12px}
 .metrics{gap:12px}.metric strong{font-size:22px}.best{font-size:9px}
 h2{font-size:38px;margin:8px 0}.dialog p{font-size:11px;margin:8px 0}
 .primary{padding:11px 16px;font-size:11px}.eyebrow{font-size:9px}
+.banner-slot{min-height:46px;font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
@@ -67,7 +74,7 @@ h2{font-size:38px;margin:8px 0}.dialog p{font-size:11px;margin:8px 0}
 <main>
 <section class="intro">
 <h1>Satu lompatan.<br>Lebih jauh lagi.</h1>
-<p>Lompati batu, hindari burung, dan temukan ritmemu. Setelah dua kali kalah, tonton iklan untuk membuka kesempatan bermain lagi.</p>
+<p>Lompati batu, hindari burung, dan temukan ritmemu. Kejar skor tertinggi dan naikkan level secepat mungkin.</p>
 </section>
 <section class="stage" id="gameWrap" aria-label="Permainan lari">
 <canvas id="game" tabindex="0" aria-label="Tekan spasi, panah atas, atau ketuk arena untuk melompat."></canvas>
@@ -77,7 +84,7 @@ h2{font-size:38px;margin:8px 0}.dialog p{font-size:11px;margin:8px 0}
 <div class="metric"><small>LEVEL</small><strong id="level">1</strong></div>
 <div class="metric"><small>SPEED</small><strong id="speed">35</strong></div>
 </div>
-<div class="best">REKOR <span id="best">0</span><br><br>KALAH <span id="losses">0</span>/2</div>
+<div class="best">REKOR <span id="best">0</span></div>
 </div>
 <div class="overlay" id="overlay">
 <div class="dialog">
@@ -86,12 +93,18 @@ h2{font-size:38px;margin:8px 0}.dialog p{font-size:11px;margin:8px 0}
 <p id="description">Tekan SPASI atau ketuk arena untuk melompat.<br>Ketuk lagi di udara untuk lompatan kedua.</p>
 <div class="actions">
 <button class="primary" id="startBtn">MULAI LARI ↗</button>
-<button class="primary hidden" id="rewardBtn">▶ TONTON IKLAN UNTUK MELANJUTKAN</button>
 </div>
 <p id="message" role="status" aria-live="polite"></p>
 </div>
 </div>
 </section>
+
+<!-- Banner tampil saat sedang main ('playing') atau kalah ('gameover') -->
+<section class="banner-wrap hidden" id="bannerWrap" aria-label="Iklan banner">
+<span class="banner-badge" id="bannerState">BANNER</span>
+<div class="banner-slot" id="bannerSlot">Area Iklan Banner aktif saat bermain atau kalah</div>
+</section>
+
 <section class="toolbar" aria-label="Pengaturan permainan">
 <div class="tools">
 <label class="upload">＋ Ganti karakter<input id="spriteFile" type="file" accept="image/png,image/webp,image/jpeg"></label>
@@ -114,61 +127,84 @@ const canvas = $('game'), ctx = canvas.getContext('2d');
 const W=960, H=540, ground=430;
 const START_SPEED=35, MAX_SPEED=65, SPEED_PER_LEVEL=3;
 // Speed 35 berarti 350 piksel/detik, bukan 35 piksel/frame.
-let speed=35, score=0, level=1, losses=0, best=0;
+let speed=35, score=0, level=1, best=0;
 let running=false, obstacles=[], rockCount=0, spawnTimer=1.4;
 let elapsed=0, distance=0, last=0, sprite=null, spriteFrames=1;
-let rewardPending=false;
 const player={x:140,y:358,w:54,h:72,vy:0,jumps:0};
 
-// Simpan hitungan kalah dalam sesi tab agar refresh tidak membuka tombol ulangi.
 try {
   best=Number(localStorage.getItem('runner-best'))||0;
-  losses=Math.min(2,Math.max(0,Number(sessionStorage.getItem('runner-losses'))||0));
 } catch (_) {}
-function saveLosses(){
-  try { sessionStorage.setItem('runner-losses',String(losses)); } catch (_) {}
+
+// Mode banner: 'idle' (sembunyi), 'playing' (saat main), 'gameover' (saat kalah)
+function setBannerMode(mode){
+  const wrap=$('bannerWrap'), badge=$('bannerState'), slot=$('bannerSlot');
+  if(mode==='playing' || mode==='gameover'){
+    wrap.classList.remove('hidden');
+    badge.textContent = mode==='playing' ? 'BANNER · MAIN' : 'BANNER · KALAH';
+    if(!slot.dataset.custom){
+      slot.textContent = mode==='playing'
+        ? 'Iklan Banner (Mode Bermain)'
+        : 'Iklan Banner (Mode Kalah / Game Over)';
+    }
+  } else {
+    wrap.classList.add('hidden');
+  }
+
+  // Bridge opsional untuk Android WebView (AdMob Banner)
+  try {
+    if(window.Android){
+      if(typeof window.Android.setBannerMode==='function'){
+        window.Android.setBannerMode(mode);
+      } else if(mode==='playing' || mode==='gameover'){
+        if(typeof window.Android.showBanner==='function') window.Android.showBanner(mode);
+      } else if(typeof window.Android.hideBanner==='function'){
+        window.Android.hideBanner();
+      }
+    }
+  } catch (_) {}
 }
+
+// Opsional: fungsi helper bila ingin menyuntikkan skrip/HTML banner web dari luar
+window.setWebBannerHtml = html => {
+  const slot=$('bannerSlot');
+  slot.innerHTML = html || '';
+  slot.dataset.custom = html ? '1' : '';
+};
+
 function updateHud(){
   $('score').textContent=Math.floor(score);
   $('level').textContent=level;
   $('speed').textContent=speed;
-  $('losses').textContent=losses;
   $('best').textContent=Math.floor(best);
 }
 function showGameOver(){
-  const locked=losses>=2;
-  $('eyebrow').textContent=locked?'DUA KESEMPATAN TELAH DIGUNAKAN':'SATU LANGKAH LEBIH JAUH';
-  $('title').textContent=locked?'Buka kesempatan.':'Coba lagi?';
-  $('description').textContent=locked
-    ? `Skor ${Math.floor(score)} · Level ${level}. Tonton iklan sampai selesai untuk membuka permainan baru.`
-    : `Skor ${Math.floor(score)} · Level ${level} · Speed ${speed}. Kamu masih punya satu kesempatan.`;
-
-  // Setelah kalah dua kali, hanya tombol iklan yang terlihat.
-  $('startBtn').classList.toggle('hidden',locked);
-  $('startBtn').disabled=locked;
+  $('eyebrow').textContent='SATU LANGKAH LEBIH JAUH';
+  $('title').textContent='Coba lagi?';
+  $('description').textContent=`Skor ${Math.floor(score)} · Level ${level} · Speed ${speed}. Tekan tombol di bawah untuk mulai lagi.`;
+  $('startBtn').classList.remove('hidden');
+  $('startBtn').disabled=false;
   $('startBtn').textContent='ULANGI LARI ↗';
-  $('rewardBtn').classList.toggle('hidden',!locked);
   $('overlay').classList.remove('hidden');
   $('message').textContent='';
-  (locked?$('rewardBtn'):$('startBtn')).focus({preventScroll:true});
+  setBannerMode('gameover');
+  $('startBtn').focus({preventScroll:true});
 }
 function start(){
-  // Penguncian juga diperiksa di logika, bukan hanya lewat tampilan tombol.
-  if(running || losses>=2 || rewardPending) return;
+  if(running) return;
   score=0;level=1;speed=START_SPEED;obstacles=[];rockCount=0;
   spawnTimer=1.4;elapsed=0;distance=0;
   player.y=ground-player.h;player.vy=0;player.jumps=0;
   running=true;last=performance.now();
   $('overlay').classList.add('hidden');
   $('message').textContent='';
+  setBannerMode('playing');
   updateHud();
   canvas.focus({preventScroll:true});
 }
 function endGame(){
   if(!running) return;
   running=false;
-  losses=Math.min(2,losses+1);
-  saveLosses();
   if(score>best){
     best=Math.floor(score);
     try {localStorage.setItem('runner-best',String(best));} catch (_) {}
@@ -337,42 +373,9 @@ $('fullBtn').addEventListener('click',async()=>{
 });
 document.addEventListener('fullscreenchange',resize);
 
-// Iklan asli membutuhkan integrasi Android/AdMob.
-// Tanpa integrasi, permainan tetap terkunci setelah dua kekalahan.
-// Tidak ada simulasi iklan atau tombol ulangi sebagai jalan pintas.
-$('rewardBtn').addEventListener('click',()=>{
-  if(rewardPending || running || losses<2) return;
-  if(!window.Android || typeof window.Android.showRewardedAd!=='function'){
-    $('message').textContent='Iklan belum tersedia. Pengembang perlu menghubungkan AdMob melalui Android Studio.';
-    return;
-  }
-  rewardPending=true;
-  $('rewardBtn').disabled=true;
-  $('message').textContent='Memuat iklan… Tonton sampai selesai untuk melanjutkan.';
-  try{window.Android.showRewardedAd();}
-  catch(_){
-    rewardPending=false;$('rewardBtn').disabled=false;
-    $('message').textContent='Iklan gagal dimuat. Tekan tombol iklan untuk mencoba lagi.';
-  }
-});
-
-// Bridge Android harus memanggil callback ini berdasarkan hasil reward asli.
-window.onRewardedAdResult=success=>{
-  if(!rewardPending || losses<2) return;
-  rewardPending=false;
-  $('rewardBtn').disabled=false;
-  if(success===true || success==='true'){
-    losses=0;saveLosses();
-    $('startBtn').disabled=false;
-    start(); // Membuka permainan baru setelah reward berhasil.
-  } else {
-    $('message').textContent='Iklan belum selesai atau tidak tersedia. Tonton iklan untuk membuka kesempatan.';
-  }
-};
-
+setBannerMode('idle');
 updateHud();
 resize();
-if(losses>0) showGameOver();
 requestAnimationFrame(t=>{last=t;loop(t);});
 })();
 </script>
